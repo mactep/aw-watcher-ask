@@ -2,6 +2,7 @@
   lib,
   fetchFromGitHub,
   python3Packages,
+  unstable,
 }:
 rec {
   pyzenity = python3Packages.buildPythonPackage {
