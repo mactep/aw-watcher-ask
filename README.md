@@ -31,6 +31,29 @@ This watcher uses [Zenity][Zenity Manual] to present dialog boxes to the user, a
 
 ## Install
 
+### Using Nix
+
+If you have [Nix](https://nixos.org/) installed, you can build and run the project directly:
+
+```sh
+# Build the package
+$ nix build
+
+# Run the application
+$ nix run
+
+# Enter a development shell with all dependencies
+$ nix develop
+
+# Or use the traditional approach with nix-shell
+$ nix-shell --run "aw-watcher-ask --help"
+```
+
+You can also install it to your user profile:
+```sh
+$ nix profile install github:bcbernardo/aw-watcher-ask
+```
+
 ### Using `pip`/`pipx`
 
 Create a [virtual environment][venv], activate it and run:
