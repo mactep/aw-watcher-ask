@@ -2,7 +2,7 @@
   lib,
   fetchFromGitHub,
   python3Packages,
-  unstable,
+  gnome,
 }:
 rec {
   pyzenity = python3Packages.buildPythonPackage {
@@ -49,6 +49,8 @@ rec {
       pyzenity
       typer
       unidecode
+    ] ++ [
+      gnome.zenity
     ];
 
     pythonImportsCheck = [ "aw_watcher_ask" ];
