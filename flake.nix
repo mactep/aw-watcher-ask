@@ -2,7 +2,7 @@
   description = "ActivityWatch watcher that asks the user questions";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/c407032be28ca2236f45c49cfb2b8b3885294f7f";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -16,10 +16,26 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        aw-watcher-ask = (pkgs.callPackage ./default.nix { }).aw-watcher-ask;
       in
       {
         packages = {
-          default = (pkgs.callPackage ./default.nix { }).aw-watcher-ask;
+          default = aw-watcher-ask;
+        };
+
+        devShells = {
+          default = pkgs.mkShell {
+            inputsFrom = [ aw-watcher-ask ];
+            packages = [
+              pkgs.poetry
+              pkgs.python3Packages.pytest
+              pkgs.python3Packages.pip
+            ];
+            shellHook = ''
+              python3 -m venv .venv
+              source .venv/bin/activate
+            '';
+          };
         };
       }
     );

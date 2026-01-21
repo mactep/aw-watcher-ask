@@ -2,7 +2,7 @@
   lib,
   fetchFromGitHub,
   python3Packages,
-  gnome,
+  zenity,
 }:
 rec {
   pyzenity = python3Packages.buildPythonPackage {
@@ -42,16 +42,19 @@ rec {
     pyproject = true;
     nativeBuildInputs = [ python3Packages.poetry-core ];
 
-    propagatedBuildInputs = with python3Packages; [
-      aw-client
-      croniter
-      loguru
-      pyzenity
-      typer
-      unidecode
-    ] ++ [
-      gnome.zenity
-    ];
+    propagatedBuildInputs =
+      with python3Packages;
+      [
+        aw-client
+        croniter
+        loguru
+        pyzenity
+        typer
+        unidecode
+      ]
+      ++ [
+        zenity
+      ];
 
     pythonImportsCheck = [ "aw_watcher_ask" ];
 
