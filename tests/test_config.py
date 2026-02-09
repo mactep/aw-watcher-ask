@@ -231,3 +231,71 @@ def test_validate_config_with_all_fields():
     assert result["timeout"] == 90
     assert result["testing"] is True
     assert result["zenity_options"] == {"width": "500", "height": "300"}
+
+
+def test_load_config_with_scale_options():
+    """Tests loading config with scale type and min/max values."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write(
+            """
+[question]
+id = "happiness.level"
+type = "scale"
+title = "My happiness level"
+text = "Are you feeling happy right now?"
+min-value = 1
+max-value = 10
+schedule = "0 */1 * * * 0"
+timeout = 120
+
+[zenity]
+extra_option = "value"
+"""
+        )
+        f.flush()
+        temp_path = f.name
+
+    try:
+        config = load_config(temp_path)
+        assert config["question_id"] == "happiness.level"
+        assert config["question_type"] == DialogType.scale
+        assert config["zenity_options"] == {
+            "extra_option": "value",
+            "min-value": 1,
+            "max-value": 10,
+        }
+    finally:
+        Path(temp_path).unlink()
+
+
+def test_load_config_with_scale_options_in_zenity():
+    """Tests loading config with scale options in zenity section (backwards compat)."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write(
+            """
+[question]
+id = "happiness.level"
+type = "scale"
+title = "My happiness level"
+text = "Are you feeling happy right now?"
+schedule = "0 */1 * * * 0"
+timeout = 120
+
+[zenity]
+min-value = 1
+max-value = 10
+"""
+        )
+        f.flush()
+        temp_path = f.name
+
+    try:
+        config = load_config(temp_path)
+        assert config["question_id"] == "happiness.level"
+        assert config["question_type"] == DialogType.scale
+        assert config["zenity_options"] == {
+            "min-value": 1,
+            "max-value": 10,
+        }
+    finally:
+        Path(temp_path).unlink()

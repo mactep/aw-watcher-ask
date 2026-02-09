@@ -1,32 +1,9 @@
 {
   lib,
-  fetchFromGitHub,
   python3Packages,
   zenity,
 }:
-rec {
-  pyzenity = python3Packages.buildPythonPackage {
-    pname = "pyzenity";
-    version = "unstable";
-
-    pyproject = true;
-    nativeBuildInputs = [ python3Packages.setuptools ];
-
-    src = fetchFromGitHub {
-      owner = "bcbernardo";
-      repo = "Zenity";
-      rev = "ab46b78";
-      sha256 = "sha256-kDoaO9RF+oA4FgusDJzE3DK3A7fuW44gAz+IM4pN++w=";
-    };
-
-    meta = with lib; {
-      description = "lightweight and full featured library to display dialogs with python";
-      homepage = "https://github.com/bcbernardo/Zenity";
-      maintainers = with maintainers; [ bcbernardo ];
-      license = licenses.mpl20;
-    };
-  };
-
+{
   aw-watcher-ask = python3Packages.buildPythonApplication {
     pname = "aw-watcher-ask";
     version = "unstable";
@@ -48,7 +25,6 @@ rec {
         aw-client
         croniter
         loguru
-        pyzenity
         typer
         unidecode
       ]

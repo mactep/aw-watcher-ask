@@ -154,6 +154,11 @@ def _validate_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
             raise ConfigError(f"Invalid datetime format for 'until': {e}")
 
     zenity_config = config_data.get("zenity", {})
+    scale_fields = ["min-value", "max-value"]
+    for field in scale_fields:
+        if field in question_config:
+            zenity_config[field] = question_config[field]
+
     result["zenity_options"] = zenity_config
 
     return result

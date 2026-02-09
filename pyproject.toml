@@ -14,7 +14,6 @@ aw-client = "^0.5.4"
 croniter = "^6.0"
 loguru = "^0.7"
 Unidecode = "^1.2.0"
-pyzenity = {git = "https://github.com/bcbernardo/Zenity.git", rev="ab46b78"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^5.2"

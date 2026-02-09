@@ -11,7 +11,6 @@ import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-import zenity
 from aw_client import ActivityWatchClient
 from aw_core.models import Event
 from croniter import croniter
@@ -19,6 +18,7 @@ from loguru import logger
 
 from aw_watcher_ask.models import DialogType
 from aw_watcher_ask.utils import fix_id, is_valid_id, get_current_datetime
+from aw_watcher_ask.zenity_wrapper import show as zenity_show
 
 
 def _bucket_setup(client: ActivityWatchClient, question_id: str) -> str:
@@ -47,7 +47,7 @@ def _ask_one(
 ) -> Dict[str, Any]:
     """Captures an user's response to a dialog box with a single field."""
     kwargs.pop("ctx", None)
-    success, content = zenity.show(
+    success, content = zenity_show(
         question_type.value, title=title, *args, **kwargs
     )
     return {
