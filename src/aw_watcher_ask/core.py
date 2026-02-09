@@ -47,13 +47,20 @@ def _ask_one(
 ) -> Dict[str, Any]:
     """Captures an user's response to a dialog box with a single field."""
     kwargs.pop("ctx", None)
+    logger.debug(f"Calling zenity with type={question_type.value}, title={title}")
+    logger.debug(f"Additional kwargs: {kwargs}")
+
     success, content = zenity_show(
         question_type.value, title=title, *args, **kwargs
     )
-    return {
+
+    result = {
         "success": success,
         title: content,
     }
+
+    logger.debug(f"Zenity response: success={success}, content={content!r}")
+    return result
 
 
 def _ask_many(
@@ -186,8 +193,13 @@ def main(
                 *args,
                 **kwargs,
             )
+
+        log.debug(f"Answer received: {answer}")
+
         if not answer["success"]:
             log.info("Prompt timed out with no response from user.")
+        else:
+            log.info(f"User provided response: {answer}")
 
         event = Event(timestamp=get_current_datetime(), data=answer)
         client.insert_event(bucket_id, event)

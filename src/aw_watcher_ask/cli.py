@@ -104,6 +104,8 @@ def _execute_run(
                 params["title"] = config["title"]
             if schedule is None and "schedule" in config:
                 params["schedule"] = config["schedule"]
+            if "text" in config and "text" not in params:
+                params["text"] = config["text"]
             if until is None and "until" in config:
                 params["until"] = config["until"]
             if timeout is None and "timeout" in config:

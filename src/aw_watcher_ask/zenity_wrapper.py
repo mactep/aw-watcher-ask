@@ -6,8 +6,11 @@
 """Direct zenity CLI wrapper for NixOS compatibility."""
 
 
+import os
 import subprocess
 from typing import Any, Dict, Optional, Tuple
+
+from loguru import logger
 
 
 DIALOG_TYPE_MAP = {
@@ -65,12 +68,28 @@ def show(
         cmd.extend(["--timeout", str(timeout)])
 
     min_value = kwargs.get("min-value")
-    if min_value is not None:
-        cmd.extend(["--min-value", str(min_value)])
-
     max_value = kwargs.get("max-value")
+    value = kwargs.get("value")
+
+    if min_value is not None:
+        cmd.append(f"--min-value={min_value}")
+
     if max_value is not None:
-        cmd.extend(["--max-value", str(max_value)])
+        cmd.append(f"--max-value={max_value}")
+
+    if value is None and min_value is not None and max_value is not None:
+        value = (min_value + max_value) // 2
+
+    if value is not None:
+        cmd.append(f"--value={value}")
+
+    logger.debug(f"Zenity command: {cmd}")
+
+    env = os.environ.copy()
+    if "DISPLAY" not in env:
+        logger.warning("DISPLAY environment variable not set, zenity may not display windows")
+    if "WAYLAND_DISPLAY" in env:
+        logger.debug(f"Wayland display detected: {env['WAYLAND_DISPLAY']}")
 
     try:
         result = subprocess.run(
@@ -78,15 +97,32 @@ def show(
             capture_output=True,
             text=True,
             timeout=timeout + 5,
+            env=env,
         )
+
+        logger.debug(f"Zenity return code: {result.returncode}")
+        logger.debug(f"Zenity stdout: {result.stdout!r}")
+        if result.stderr:
+            logger.debug(f"Zenity stderr: {result.stderr!r}")
 
         if result.returncode == 0:
             return True, result.stdout.strip()
+
+        if result.returncode == 1:
+            logger.warning(f"Zenity closed by user (return code 1)")
+        elif result.returncode == 5:
+            logger.warning("Zenity timed out or displayed warning (return code 5)")
+        else:
+            logger.warning(f"Zenity exited with unexpected return code {result.returncode}")
+
         return False, ""
 
     except subprocess.TimeoutExpired:
+        logger.warning("Zenity subprocess timed out")
         return False, ""
     except FileNotFoundError:
+        logger.error("Zenity not found in PATH")
         return False, ""
-    except Exception:
+    except Exception as e:
+        logger.error(f"Unexpected error running zenity: {e}")
         return False, ""
