@@ -81,6 +81,7 @@ def _execute_run(
     until: Optional[datetime] = None,
     timeout: Optional[int] = None,
     testing: Optional[bool] = None,
+    verbose: bool = False,
 ):
     """Execute the main run logic."""
     params = locals().copy()
@@ -135,6 +136,7 @@ def _execute_run(
     if isinstance(params["question_type"], str):
         params["question_type"] = DialogType(params["question_type"])
 
+    params["verbose"] = verbose
     params = dict(params, **_parse_extra_args(ctx.args))
     main(**params)
 
@@ -205,6 +207,9 @@ def run(
     testing: Optional[bool] = typer.Option(
         None, help="If set, starts ActivityWatch Client in testing mode."
     ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable debug logging output."
+    ),
 ):
     _execute_run(
         ctx,
@@ -215,4 +220,5 @@ def run(
         until=until,
         timeout=timeout,
         testing=testing,
+        verbose=verbose,
     )

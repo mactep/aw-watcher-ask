@@ -78,6 +78,7 @@ def main(
     until: datetime = datetime(2100, 12, 31),
     timeout: int = 60,
     testing: bool = False,
+    verbose: bool = False,
     *args,
     **kwargs,
 ) -> None:
@@ -120,6 +121,7 @@ def main(
         testing: Whether to run the [`aw_client.ActivityWatchClient`]
             (https://docs.activitywatch.net/en/latest/api/python.html
             #aw_client.ActivityWatchClient) client in testing mode.
+        verbose: Whether to enable debug logging output. Defaults to False.
         *args: Variable lenght argument list to be passed to [`zenity.show()`]
             (https://pyzenity.gitbook.io/docs/) Zenity wrapper.
         **kwargs: Variable lenght argument list to be passed to
@@ -133,7 +135,7 @@ def main(
     """
 
     log_format = "{time} <{extra[question_id]}>: {level} - {message}"
-    logger.add(sys.stderr, level="INFO", format=log_format)
+    logger.add(sys.stderr, level="DEBUG" if verbose else "INFO", format=log_format)
     log = logger.bind(question_id=question_id)
 
     log.info("Starting new watcher...")
