@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Union
 import typer
 
 from aw_watcher_ask import __version__
+from aw_watcher_ask.config import ConfigError, load_config
 from aw_watcher_ask.core import main
 from aw_watcher_ask.models import DialogType
 
@@ -77,6 +78,9 @@ def callback(
     version: Optional[bool] = typer.Option(
         False, "--version", help="Show program version.", show_default=False
     ),
+    config: Optional[str] = typer.Option(
+        None, "--config", help="Path to TOML config file."
+    ),
 ):
     """Gathers user's inputs and send them to ActivityWatch.
 
@@ -84,6 +88,9 @@ def callback(
     provided answer on the locally running ActivityWatch server. It relies on
     Zenity to construct simple graphic interfaces.
     """
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = config
+
     if version and ctx.invoked_subcommand is None:
         typer.echo(__version__)
         typer.Exit()
@@ -96,10 +103,10 @@ def callback(
 })
 def run(
     ctx: typer.Context,
-    question_type: DialogType = typer.Option(..., help=(
+    question_type: Optional[DialogType] = typer.Option(None, help=(
         "The type of dialog box to present the user."
     )),
-    question_id: str = typer.Option(..., help=(
+    question_id: Optional[str] = typer.Option(None, help=(
         "A short string to identify your question in ActivityWatch "
         "server records. Should contain only lower-case letters, numbers and "
         "dots. If `--title` is not provided, this will also be the "
@@ -111,7 +118,7 @@ def run(
         "the title of the dialog box and the key that identifies the content "
         "of the answer in the ActivityWatch bucket's raw data."
     )),
-    schedule: str = typer.Option("R * * * *", help=(
+    schedule: Optional[str] = typer.Option("R * * * *", help=(
         "A cron-tab expression (see https://en.wikipedia.org/wiki/Cron) "
         "that controls the execution intervals at which the user should be "
         "prompted to answer the given question. Accepts 'R' as a keyword at "
@@ -119,17 +126,56 @@ def run(
         "Might be a classic five-element expression, or optionally have a "
         "sixth element to indicate the seconds."
     )),
-    until: datetime = typer.Option("2100-12-31", help=(
+    until: Optional[datetime] = typer.Option("2100-12-31", help=(
         "A date and time when to stop gathering input from the user."
     )),
-    timeout: int = typer.Option(
+    timeout: Optional[int] = typer.Option(
         60, help="The amount of seconds to wait for user's input."
     ),
-    testing: bool = typer.Option(
+    testing: Optional[bool] = typer.Option(
         False, help="If set, starts ActivityWatch Client in testing mode."
     ),
 ):
     params = locals().copy()
     params.pop("ctx", None)
+
+    config_path = ctx.obj.get("config_path")
+
+    cli_params_provided = (
+        question_id is not None or
+        question_type is not None
+    )
+
+    if config_path or not cli_params_provided:
+        try:
+            config = load_config(config_path)
+            if question_id is None:
+                params["question_id"] = config["question_id"]
+            if question_type is None:
+                params["question_type"] = config["question_type"]
+            if title is None and "title" in config:
+                params["title"] = config["title"]
+            if schedule is None and "schedule" in config:
+                params["schedule"] = config["schedule"]
+            if until is None and "until" in config:
+                params["until"] = config["until"]
+            if timeout is None and "timeout" in config:
+                params["timeout"] = config["timeout"]
+            if testing is None and "testing" in config:
+                params["testing"] = config["testing"]
+
+            extra_args = config.get("zenity_options", {})
+            params = dict(params, **extra_args)
+        except ConfigError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        if question_id is None:
+            typer.echo("Error: --question-id is required when not using config file", err=True)
+            raise typer.Exit(code=1)
+
+    if isinstance(params["question_type"], str):
+        params["question_type"] = DialogType(params["question_type"])
+
     params = dict(params, **_parse_extra_args(ctx.args))
     main(**params)

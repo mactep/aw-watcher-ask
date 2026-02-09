@@ -37,10 +37,11 @@ def test_app(runner, question_id, question_type, schedule):
         app,
         [
             "run",
+            "--question-type",
             question_type,
-            "--testing",
-            "--id",
+            "--question-id",
             question_id,
+            "--testing",
             "--schedule",
             schedule,
             "--until",

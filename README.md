@@ -33,6 +33,8 @@ This watcher uses [Zenity][Zenity Manual] to present dialog boxes to the user, a
 
 ### Using Nix
 
+### Using Nix
+
 If you have [Nix](https://nixos.org/) installed, you can build and run the project directly:
 
 ```sh
@@ -113,6 +115,55 @@ $ aw-watcher-ask run --question-id "happiness.level" --question-type="question" 
 ![Example dialog asking if the user is happy](./assets/img/example_dialog.png)
 
 Check `aw-watcher-ask run --help` to see all required and optional control parameters.
+
+### Using Config File
+
+You can also configure the watcher using a TOML config file instead of command-line arguments. This is especially useful for running multiple watchers with different configurations.
+
+Create a config file at `~/.config/activitywatch/aw-watcher-ask/config.toml`:
+
+```toml
+[question]
+id = "happiness.level"
+type = "question"
+title = "My happiness level"
+text = "Are you feeling happy right now?"
+schedule = "0 */1 * * * 0"
+timeout = 120
+```
+
+Optional parameters:
+
+```toml
+[question]
+id = "happiness.level"
+type = "question"
+title = "My happiness level"
+text = "Are you feeling happy right now?"
+schedule = "0 */1 * * * 0"
+timeout = 120
+until = "2100-12-31T23:59:59"
+testing = false
+
+# Extra Zenity parameters (optional)
+[zenity]
+width = "500"
+height = "300"
+```
+
+Then run:
+
+```sh
+$ aw-watcher-ask run
+```
+
+Or specify a custom config path:
+
+```sh
+$ aw-watcher-ask --config /path/to/config.toml run
+```
+
+**Note:** When command-line parameters are provided, they take precedence over the config file. If no command-line parameters are provided, the config file is used.
 
 The `--question-id` is used to identify this particular question in the ActivityWatcher a `aw-watcher-ask` bucket, and is therefore mandatory.
 
