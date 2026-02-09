@@ -77,10 +77,10 @@ def _execute_run(
     question_type: Optional[DialogType] = None,
     question_id: Optional[str] = None,
     title: Optional[str] = None,
-    schedule: Optional[str] = "R * * * *",
+    schedule: Optional[str] = None,
     until: Optional[datetime] = None,
-    timeout: Optional[int] = 60,
-    testing: Optional[bool] = False,
+    timeout: Optional[int] = None,
+    testing: Optional[bool] = None,
 ):
     """Execute the main run logic."""
     params = locals().copy()
@@ -120,6 +120,15 @@ def _execute_run(
         if question_id is None:
             typer.echo("Error: --question-id is required when not using config file", err=True)
             raise typer.Exit(code=1)
+
+    if params.get("schedule") is None:
+        params["schedule"] = "R * * * *"
+    if params.get("timeout") is None:
+        params["timeout"] = 60
+    if params.get("until") is None:
+        params["until"] = datetime(2100, 12, 31)
+    if params.get("testing") is None:
+        params["testing"] = False
 
     if isinstance(params["question_type"], str):
         params["question_type"] = DialogType(params["question_type"])
@@ -177,7 +186,7 @@ def run(
         "the title of the dialog box and the key that identifies the content "
         "of the answer in the ActivityWatch bucket's raw data."
     )),
-    schedule: Optional[str] = typer.Option("R * * * *", help=(
+    schedule: Optional[str] = typer.Option(None, help=(
         "A cron-tab expression (see https://en.wikipedia.org/wiki/Cron) "
         "that controls the execution intervals at which the user should be "
         "prompted to answer the given question. Accepts 'R' as a keyword at "
@@ -185,14 +194,14 @@ def run(
         "Might be a classic five-element expression, or optionally have a "
         "sixth element to indicate the seconds."
     )),
-    until: Optional[datetime] = typer.Option("2100-12-31", help=(
+    until: Optional[datetime] = typer.Option(None, help=(
         "A date and time when to stop gathering input from the user."
     )),
     timeout: Optional[int] = typer.Option(
-        60, help="The amount of seconds to wait for user's input."
+        None, help="The amount of seconds to wait for user's input."
     ),
     testing: Optional[bool] = typer.Option(
-        False, help="If set, starts ActivityWatch Client in testing mode."
+        None, help="If set, starts ActivityWatch Client in testing mode."
     ),
 ):
     _execute_run(

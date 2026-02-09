@@ -162,7 +162,7 @@ def main(
             f"Next execution scheduled to {next_execution.isoformat()}."
         )
         sleep_time = next_execution - get_current_datetime()
-        time.sleep(max(sleep_time.seconds, 0))
+        time.sleep(max(sleep_time.total_seconds(), 0))
 
         log.info(
             "New prompt fired. Waiting for user input..."
