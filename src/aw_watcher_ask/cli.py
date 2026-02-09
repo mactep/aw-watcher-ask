@@ -72,70 +72,17 @@ def _parse_extra_args(
     return options
 
 
-@app.callback(invoke_without_command=True)
-def callback(
+def _execute_run(
     ctx: typer.Context,
-    version: Optional[bool] = typer.Option(
-        False, "--version", help="Show program version.", show_default=False
-    ),
-    config: Optional[str] = typer.Option(
-        None, "--config", help="Path to TOML config file."
-    ),
+    question_type: Optional[DialogType] = None,
+    question_id: Optional[str] = None,
+    title: Optional[str] = None,
+    schedule: Optional[str] = "R * * * *",
+    until: Optional[datetime] = None,
+    timeout: Optional[int] = 60,
+    testing: Optional[bool] = False,
 ):
-    """Gathers user's inputs and send them to ActivityWatch.
-
-    This watcher periodically presents a dialog box to the user, and stores the
-    provided answer on the locally running ActivityWatch server. It relies on
-    Zenity to construct simple graphic interfaces.
-    """
-    ctx.ensure_object(dict)
-    ctx.obj["config_path"] = config
-
-    if version and ctx.invoked_subcommand is None:
-        typer.echo(__version__)
-        typer.Exit()
-
-
-@app.command(context_settings={
-    "allow_extra_args": True,
-    "ignore_unknown_options": True,
-    "allow_interspersed_args": False,
-})
-def run(
-    ctx: typer.Context,
-    question_type: Optional[DialogType] = typer.Option(None, help=(
-        "The type of dialog box to present the user."
-    )),
-    question_id: Optional[str] = typer.Option(None, help=(
-        "A short string to identify your question in ActivityWatch "
-        "server records. Should contain only lower-case letters, numbers and "
-        "dots. If `--title` is not provided, this will also be the "
-        "key to identify the content of the answer in the ActivityWatch "
-        "bucket's raw data."
-    )),
-    title: Optional[str] = typer.Option(None, help=(
-        "An optional title for the question. If provided, this will be both "
-        "the title of the dialog box and the key that identifies the content "
-        "of the answer in the ActivityWatch bucket's raw data."
-    )),
-    schedule: Optional[str] = typer.Option("R * * * *", help=(
-        "A cron-tab expression (see https://en.wikipedia.org/wiki/Cron) "
-        "that controls the execution intervals at which the user should be "
-        "prompted to answer the given question. Accepts 'R' as a keyword at "
-        "second, minute and hour positions, for prompting at random times."
-        "Might be a classic five-element expression, or optionally have a "
-        "sixth element to indicate the seconds."
-    )),
-    until: Optional[datetime] = typer.Option("2100-12-31", help=(
-        "A date and time when to stop gathering input from the user."
-    )),
-    timeout: Optional[int] = typer.Option(
-        60, help="The amount of seconds to wait for user's input."
-    ),
-    testing: Optional[bool] = typer.Option(
-        False, help="If set, starts ActivityWatch Client in testing mode."
-    ),
-):
+    """Execute the main run logic."""
     params = locals().copy()
     params.pop("ctx", None)
 
@@ -179,3 +126,82 @@ def run(
 
     params = dict(params, **_parse_extra_args(ctx.args))
     main(**params)
+
+
+@app.callback(invoke_without_command=True)
+def callback(
+    ctx: typer.Context,
+    version: Optional[bool] = typer.Option(
+        False, "--version", help="Show program version.", show_default=False
+    ),
+    config: Optional[str] = typer.Option(
+        None, "--config", help="Path to TOML config file."
+    ),
+):
+    """Gathers user's inputs and send them to ActivityWatch.
+
+    This watcher periodically presents a dialog box to the user, and stores the
+    provided answer on the locally running ActivityWatch server. It relies on
+    Zenity to construct simple graphic interfaces.
+    """
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = config
+
+    if version and ctx.invoked_subcommand is None:
+        typer.echo(__version__)
+        typer.Exit()
+
+    if ctx.invoked_subcommand is None:
+        _execute_run(ctx)
+
+
+@app.command(context_settings={
+    "allow_extra_args": True,
+    "ignore_unknown_options": True,
+    "allow_interspersed_args": False,
+})
+def run(
+    ctx: typer.Context,
+    question_type: Optional[DialogType] = typer.Option(None, help=(
+        "The type of dialog box to present the user."
+    )),
+    question_id: Optional[str] = typer.Option(None, help=(
+        "A short string to identify your question in ActivityWatch "
+        "server records. Should contain only lower-case letters, numbers and "
+        "dots. If `--title` is not provided, this will also be the "
+        "key to identify the content of the answer in the ActivityWatch "
+        "bucket's raw data."
+    )),
+    title: Optional[str] = typer.Option(None, help=(
+        "An optional title for the question. If provided, this will be both "
+        "the title of the dialog box and the key that identifies the content "
+        "of the answer in the ActivityWatch bucket's raw data."
+    )),
+    schedule: Optional[str] = typer.Option("R * * * *", help=(
+        "A cron-tab expression (see https://en.wikipedia.org/wiki/Cron) "
+        "that controls the execution intervals at which the user should be "
+        "prompted to answer the given question. Accepts 'R' as a keyword at "
+        "second, minute and hour positions, for prompting at random times."
+        "Might be a classic five-element expression, or optionally have a "
+        "sixth element to indicate the seconds."
+    )),
+    until: Optional[datetime] = typer.Option("2100-12-31", help=(
+        "A date and time when to stop gathering input from the user."
+    )),
+    timeout: Optional[int] = typer.Option(
+        60, help="The amount of seconds to wait for user's input."
+    ),
+    testing: Optional[bool] = typer.Option(
+        False, help="If set, starts ActivityWatch Client in testing mode."
+    ),
+):
+    _execute_run(
+        ctx,
+        question_type=question_type,
+        question_id=question_id,
+        title=title,
+        schedule=schedule,
+        until=until,
+        timeout=timeout,
+        testing=testing,
+    )
