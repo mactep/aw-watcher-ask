@@ -50,11 +50,15 @@ def test_bucket_setup():
 
 def test_ask_question():
     """Tests asking a question with a single answer field to the user."""
-    answer = _ask_one(DialogType("question"), "Test question", timeout=2)
+    answer = _ask_one("test.question", DialogType("question"), "Test question", timeout=2)
     assert "success" in answer
     assert not answer["success"]
-    assert "Test question" in answer
-    assert len(answer["Test question"]) == 0
+    assert "question_id" in answer
+    assert answer["question_id"] == "test.question"
+    assert "title" in answer
+    assert answer["title"] == "Test question"
+    assert "value" in answer
+    assert len(answer["value"]) == 0
 
 
 def test_ask_many():
@@ -87,11 +91,9 @@ def test_main_one(question_type: str, title: Optional[str]):
             assert last_event.timestamp < end_time + timedelta(seconds=2)
             assert "success" in last_event.data
             assert not last_event.data["success"]
-            if not title:
-                assert question_id in last_event.data
-                assert len(last_event.data[question_id]) == 0
-            else:
-                assert title in last_event.data
-                assert len(last_event.data[title]) == 0
+            assert "question_id" in last_event.data
+            assert "title" in last_event.data
+            assert "value" in last_event.data
+            assert len(last_event.data["value"]) == 0
         finally:
             client.delete_bucket(bucket_id)

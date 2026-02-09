@@ -43,7 +43,7 @@ def _client_setup(testing: bool = False) -> ActivityWatchClient:
 
 
 def _ask_one(
-    question_type: DialogType, title: str, *args, **kwargs
+    question_id: str, question_type: DialogType, title: str, *args, **kwargs
 ) -> Dict[str, Any]:
     """Captures an user's response to a dialog box with a single field."""
     kwargs.pop("ctx", None)
@@ -56,8 +56,14 @@ def _ask_one(
 
     result = {
         "success": success,
-        title: content,
+        "question_id": question_id,
+        "title": title,
+        "value": content,
     }
+
+    if question_type == DialogType.scale:
+        result["min-value"] = kwargs.get("min-value")
+        result["max-value"] = kwargs.get("max-value")
 
     logger.debug(f"Zenity response: success={success}, content={content!r}")
     return result
@@ -187,6 +193,7 @@ def main(
             )
         else:
             answer = _ask_one(
+                question_id=question_id,
                 question_type=question_type,
                 title=(
                     title if title else question_id
