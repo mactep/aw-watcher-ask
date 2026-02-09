@@ -23,6 +23,7 @@ This watcher uses [Zenity][Zenity Manual] to present dialog boxes to the user, a
   - [Usage](#usage)
     - [CLI](#cli)
     - [Accessing the data](#accessing-the-data)
+    - [Custom visualization](#custom-visualization)
   - [Security](#security)
   - [Limitations and Roadmap](#limitations-and-roadmap)
   - [Maintainers](#maintainers)
@@ -176,6 +177,36 @@ The `question-type` parameters is also required and should be one of Zenity's su
 All data gathered is stored under `aw-watcher-ask_localhost.localdomain` bucket (or `test-aw-watcher-ask_localhost.localdomain`, when running with the `--testing` flag) in the local ActivityWatch endpoint. Check ActivityWatch [REST API documentation][AW API] to learn how to get the stored events programatically, so that you can apply some custom analysis.
 
 [AW API]: https://docs.activitywatch.net/en/latest/api/rest.html
+
+### Custom visualization
+
+This watcher ships with an experimental custom visualization for displaying scale-type responses in the ActivityWatch web UI.
+
+NOTE: This is a work-in-progress. Custom visualizations is an experimental feature with little to no decent documentation, so far.
+
+The visualization displays statistics and a timeline chart of scale responses over time. Only scale-type responses from `--question-type=scale` are shown.
+
+You can configure aw-server or aw-server-rust to host the custom visualization.
+
+To do so for aw-server, add the following to your config file (with the correct path!):
+
+```toml
+[server.custom_static]
+aw-watcher-ask = "/home/user/path/to/aw-watcher-ask/visualization"
+```
+
+For aw-server-rust, instead add the following to your config file (with the correct path!):
+
+```toml
+[custom_static]
+aw-watcher-ask = "/home/user/path/to/aw-watcher-ask/visualization"
+```
+
+You then need to restart aw-server/aw-server-rust for the changes to take effect.
+
+Once the server is restarted, you can open the Activity view in the web UI, click "Edit view", then "Add visualization", then click the cogwheel and select "Custom visualization". This will open a popup asking for which visualization, here enter "aw-watcher-ask".
+
+It should now work. Click save and you're done!
 
 ## Security
 

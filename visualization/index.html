@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>aw-watcher-ask</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .stats-table {
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .stats-table th, .stats-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .stats-table th {
+            background-color: #f2f2f2;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    Loading...
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.27.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@0.1.1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+
+<script>
+    const exports = {};
+    function require(name) {
+        if (name === 'axios') {
+            return axios;
+        }
+        throw new Error(`Cannot find module '${name}'`);
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/aw-client@0.3.4/out/aw-client.min.js"></script>
+
+<script defer>
+    const urlParams = new URLSearchParams(window.location.search);
+    const start = urlParams.get('start');
+    const end = urlParams.get('end');
+    const hostname = urlParams.get('hostname') || 'localhost.localdomain';
+
+    const client = new AWClient('aw-watcher-ask', { baseURL: window.location.origin });
+
+    function avg(arr) {
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function round(num) {
+        return Math.round((num + Number.EPSILON) * 100) / 100;
+    }
+
+    function getScaleValue(event) {
+        const data = event.data;
+        for (const key in data) {
+            if (key !== 'success') {
+                const value = parseFloat(data[key]);
+                if (!isNaN(value)) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    }
+
+    function getQuestionId(event) {
+        const data = event.data;
+        for (const key in data) {
+            if (key !== 'success') {
+                return key;
+            }
+        }
+        return 'Unknown';
+    }
+
+    function formatPercentage(value) {
+        return round(value * 100).toFixed(1) + '%';
+    }
+
+    const colors = [
+        'rgb(41, 255, 1)',
+        'rgb(255, 99, 132)',
+        'rgb(54, 162, 235)',
+        'rgb(255, 206, 86)',
+        'rgb(75, 192, 192)',
+        'rgb(153, 102, 255)',
+        'rgb(255, 159, 64)',
+        'rgb(199, 199, 199)'
+    ];
+
+    client.query(
+        [`${start}/${end}`],
+        [`RETURN = query_bucket("aw-watcher-ask_${hostname}");`]
+    ).then((awData) => {
+        const events = awData[0];
+
+        if (events.length === 0) {
+            document.body.innerHTML = '<p>No events found for the selected time range.</p>';
+            return;
+        }
+
+        const totalEvents = events.length;
+        const answeredEvents = events.filter(e => e.data.success === true);
+        const totalAnswered = answeredEvents.length;
+        const responseRate = totalEvents > 0 ? (totalAnswered / totalEvents) : 0;
+
+        const scaleEvents = answeredEvents
+            .map(event => ({
+                ...event,
+                scaleValue: getScaleValue(event),
+                questionId: getQuestionId(event)
+            }))
+            .filter(event => event.scaleValue !== null);
+
+        if (scaleEvents.length === 0) {
+            document.body.innerHTML = '<p>No scale-type responses found.</p>';
+            return;
+        }
+
+        const scaleValues = scaleEvents.map(e => e.scaleValue);
+        const average = avg(scaleValues);
+
+        const questionIds = [...new Set(scaleEvents.map(e => e.questionId))];
+
+        const datasets = questionIds.map((questionId, index) => {
+            const questionEvents = scaleEvents
+                .filter(e => e.questionId === questionId)
+                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            return {
+                label: questionId,
+                data: questionEvents.map(e => ({
+                    x: new Date(e.timestamp),
+                    y: e.scaleValue
+                })),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                fill: true,
+                tension: 0.25
+            };
+        });
+
+        document.body.innerHTML = `
+            <h2>Statistics</h2>
+            <table class="stats-table">
+                <tr><th>Average</th><td>${round(average)}</td></tr>
+                <tr><th>Total Responses</th><td>${totalAnswered}</td></tr>
+                <tr><th>Response Rate</th><td>${formatPercentage(responseRate)}</td></tr>
+                <tr><th>Questions</th><td>${questionIds.length}</td></tr>
+            </table>
+            <h2>Timeline</h2>
+            <div class="chart-container"><canvas id="chart"></canvas></div>
+        `;
+
+        const ctx = document.getElementById('chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        min: new Date(start),
+                        max: new Date(end)
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Scale Value'
+                        }
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'nearest',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }).catch((err) => {
+        document.body.innerText = 'Error: ' + err.message;
+        console.error(err);
+    });
+</script>
+</html>
