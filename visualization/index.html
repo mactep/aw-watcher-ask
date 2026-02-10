@@ -99,6 +99,59 @@
             .sort((a, b) => a.x - b.x);
     }
 
+    function aggregateByDay(events) {
+        const dayMap = new Map();
+        
+        for (const event of events) {
+            const date = new Date(event.timestamp);
+            const dayTimestamp = new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+            ).getTime();
+            
+            if (!dayMap.has(dayTimestamp)) {
+                dayMap.set(dayTimestamp, { sum: 0, count: 0, reasons: new Set() });
+            }
+            
+            const bucket = dayMap.get(dayTimestamp);
+            bucket.sum += parseFloat(event.data.value);
+            bucket.count += 1;
+            
+            const reason = event.data.reason?.trim();
+            if (reason) {
+                const splitReasons = reason.split(',').map(r => r.trim()).filter(r => r);
+                splitReasons.forEach(r => bucket.reasons.add(r));
+            }
+        }
+        
+        return Array.from(dayMap.entries())
+            .map(([timestamp, data]) => ({
+                x: new Date(timestamp),
+                y: data.sum / data.count,
+                reason: data.reasons.size > 0 
+                    ? Array.from(data.reasons).map(r => `• ${r}`).join('<br>') 
+                    : ''
+            }))
+            .sort((a, b) => a.x - b.x);
+    }
+
+    function getAggregationConfig(start, end) {
+        const duration = new Date(end) - new Date(start);
+        if (duration > 24 * 60 * 60 * 1000) {
+            return {
+                aggregFn: aggregateByDay,
+                timeUnit: 'day',
+                displayFormat: 'MMM DD'
+            };
+        }
+        return {
+            aggregFn: aggregateByHour,
+            timeUnit: 'hour',
+            displayFormat: 'HH:mm'
+        };
+    }
+
     const colors = [
         'rgb(41, 255, 1)',
         'rgb(255, 99, 132)',
@@ -137,9 +190,11 @@
 
         const titles = [...new Set(scaleEvents.map(e => e.data.title))];
 
+        const aggregConfig = getAggregationConfig(start, end);
+
         const datasets = titles.map((title, index) => {
             const titleEvents = scaleEvents.filter(e => e.data.title === title);
-            const aggregatedData = aggregateByHour(titleEvents);
+            const aggregatedData = aggregConfig.aggregFn(titleEvents);
 
             return {
                 label: title,
@@ -167,13 +222,13 @@
                         min: new Date(start),
                         max: new Date(end),
                         time: {
-                            unit: 'hour',
+                            unit: aggregConfig.timeUnit,
                             displayFormats: {
-                                hour: 'HH:mm'
+                                [aggregConfig.timeUnit]: aggregConfig.displayFormat
                             }
                         },
                         ticks: {
-                            format: 'HH:mm'
+                            format: aggregConfig.displayFormat
                         }
                     },
                     y: {
