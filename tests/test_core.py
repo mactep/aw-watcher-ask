@@ -16,7 +16,7 @@ from aw_client import ActivityWatchClient
 from aw_watcher_ask.core import (
     _ask_many, _ask_one, _client_setup, _bucket_setup, main
 )
-from aw_watcher_ask.models import DialogType
+from aw_watcher_ask.models import DialogType, Question
 
 
 def test_client_setup():
@@ -63,8 +63,20 @@ def test_ask_question():
 
 def test_ask_many():
     """Tests asking a question with multiple answer fields to the user."""
-    with pytest.raises(NotImplementedError):
-        _ask_many(DialogType("forms"), timeout=5)
+    questions = [
+        Question(id="happiness", field_type="combo", label="How happy?", values=["1", "2", "3"], reason=True),
+        Question(id="anxiety", field_type="combo", label="How anxious?", values=["1", "2", "3"], reason=True)
+    ]
+    responses = _ask_many(
+        group_id="test",
+        questions=questions,
+        title="Test",
+        text="Test form",
+        timeout=2
+    )
+    assert isinstance(responses, dict)
+    # Timeout will result in empty responses
+    assert len(responses) == 0
 
 
 @pytest.mark.parametrize("question_type", ["question"])

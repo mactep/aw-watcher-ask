@@ -9,14 +9,14 @@
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from aw_client import ActivityWatchClient
 from aw_core.models import Event
 from croniter import croniter
 from loguru import logger
 
-from aw_watcher_ask.models import DialogType
+from aw_watcher_ask.models import DialogType, Question, QuestionGroup
 from aw_watcher_ask.utils import fix_id, is_valid_id, get_current_datetime
 from aw_watcher_ask.zenity_wrapper import show as zenity_show
 
@@ -70,10 +70,73 @@ def _ask_one(
 
 
 def _ask_many(
-    question_type: DialogType, separator: str = "|", *args, **kwargs
-) -> Dict[str, Any]:
-    """Captures the user's response to a dialog box with multiple fields."""
-    raise NotImplementedError
+    group_id: str,
+    questions: List[Question],
+    title: str,
+    text: Optional[str],
+    timeout: int,
+    **kwargs,
+) -> Dict[str, Dict[str, Any]]:
+    """Captures the user's response to a dialog box with multiple fields.
+
+    Args:
+        group_id: Identifier for the question group
+        questions: List of Question objects with id, field_type, label, values, reason
+        title: Window title for the dialog
+        text: Text message to display
+        timeout: Timeout in seconds
+        **kwargs: Additional zenity options
+
+    Returns:
+        Dict mapping question_id to response dict. Empty values are excluded.
+    """
+    form_fields = [
+        {
+            "field_type": q.field_type,
+            "label": q.label,
+            "values": q.values or []
+        }
+        for q in questions
+    ]
+    
+    reason_fields = [q.reason for q in questions]
+
+    success, content = zenity_show(
+        "forms",
+        title=title,
+        text=text,
+        timeout=timeout,
+        form_fields=form_fields,
+        reason_fields=reason_fields,
+        **kwargs
+    )
+
+    if not success or not content:
+        return {}
+
+    values = content.split("|")
+    result = {}
+
+    for i, question in enumerate(questions):
+        value_idx = i * 2 if question.reason else i
+        reason_idx = value_idx + 1 if question.reason else -1
+        
+        if value_idx < len(values):
+            response = {
+                "success": True,
+                "question_id": question.id,
+                "group_id": group_id,
+                "title": question.label,
+                "value": values[value_idx],
+                "field_type": question.field_type,
+            }
+            
+            if question.reason and reason_idx < len(values):
+                response["reason"] = values[reason_idx]
+            
+            result[question.id] = response
+
+    return result
 
 
 def main(
@@ -186,7 +249,7 @@ def main(
             # TODO: not implemented
             answer = _ask_many(
                 question_type=question_type,
-                title=title,
+                title=title or question_id,
                 timeout=timeout,
                 *args,
                 **kwargs,
@@ -213,3 +276,128 @@ def main(
         event = Event(timestamp=get_current_datetime(), data=answer)
         client.insert_event(bucket_id, event)
         log.info(f"Event stored in bucket '{bucket_id}'.")
+
+
+def main_for_groups(
+    question_groups: List[QuestionGroup],
+    testing: bool = False,
+    verbose: bool = False,
+) -> None:
+    """Runs multiple question groups with independent schedules.
+
+    Each group has its own croniter for scheduling. When a group triggers,
+    all its questions are displayed in a single zenity forms dialog.
+    Each question response is stored as a separate event in ActivityWatch.
+
+    Args:
+        question_groups: List of QuestionGroup objects to run
+        testing: Whether to run ActivityWatch Client in testing mode
+        verbose: Whether to enable debug logging output
+    """
+    log_format = "{time} <{extra[group_id]}>: {level} - {message}"
+    logger.add(sys.stderr, level="DEBUG" if verbose else "INFO", format=log_format)
+
+    log = logger.bind(group_id="main")
+    log.info(f"Starting watcher with {len(question_groups)} question groups...")
+
+    client = _client_setup(testing=testing)
+    log.info(f"Client created and connected to server at {client.server_address}.")
+
+    bucket_id = _bucket_setup(client, "ask.question")
+
+    group_executions = []
+    for group in question_groups:
+        until = group.until if group.until else datetime(2100, 12, 31)
+        if not until.tzinfo:
+            system_timezone = get_current_datetime().astimezone().tzinfo
+            until = until.replace(tzinfo=system_timezone)
+        cron = croniter(group.schedule, start_time=get_current_datetime())
+        group_executions.append({
+            "group": group,
+            "croniter": cron,
+            "until": until,
+            "next_execution": cron.get_next(datetime),
+        })
+
+    while True:
+        active_groups = [e for e in group_executions if e["until"] > get_current_datetime()]
+        
+        if not active_groups:
+            log.info("All question groups have expired. Stopping watcher.")
+            break
+
+        next_times = [(e["next_execution"], e["group"].id) for e in active_groups]
+        next_times.sort(key=lambda x: x[0])
+        next_execution, next_group_id = next_times[0]
+        log.info(f"Next execution scheduled to {next_execution.isoformat()} for group '{next_group_id}'.")
+
+        sleep_time = next_execution - get_current_datetime()
+        time.sleep(max(sleep_time.total_seconds(), 0))
+
+        triggered_groups = [
+            e for e in group_executions
+            if e["until"] > get_current_datetime()
+            and e["next_execution"].timestamp() == next_execution.timestamp()
+        ]
+
+        for execution in triggered_groups:
+            group = execution["group"]
+            log.info(f"New prompt fired for group '{group.id}'. Waiting for user input...")
+
+            responses = _ask_many(
+                group_id=group.id,
+                questions=group.questions,
+                title=group.title,
+                text=group.text,
+                timeout=group.timeout,
+            )
+
+            for question in group.questions:
+                response = responses.get(question.id)
+                
+                if response:
+                    log.info(f"Question '{question.id}': User provided response: {response['value']}")
+                    if response.get("reason"):
+                        log.info(f"Question '{question.id}': Reason: {response['reason']}")
+                else:
+                    log.info(f"Question '{question.id}': No response from user")
+                    response = {
+                        "success": False,
+                        "question_id": question.id,
+                        "group_id": group.id,
+                        "title": question.label,
+                        "value": "",
+                        "field_type": question.field_type,
+                    }
+                    if question.reason:
+                        response["reason"] = ""
+
+                event = Event(timestamp=get_current_datetime(), data=response)
+                client.insert_event(bucket_id, event)
+                log.info(f"Event for question '{question.id}' stored in bucket '{bucket_id}'.")
+            
+            execution["next_execution"] = execution["croniter"].get_next(datetime)
+
+            for question in group.questions:
+                response = responses.get(question.id)
+                
+                if response:
+                    log.info(f"Question '{question.id}': User provided response: {response['value']}")
+                    if response.get("reason"):
+                        log.info(f"Question '{question.id}': Reason: {response['reason']}")
+                else:
+                    log.info(f"Question '{question.id}': No response from user")
+                    response = {
+                        "success": False,
+                        "question_id": question.id,
+                        "group_id": group.id,
+                        "title": question.label,
+                        "value": "",
+                        "field_type": question.field_type,
+                    }
+                    if question.reason:
+                        response["reason"] = ""
+
+                event = Event(timestamp=get_current_datetime(), data=response)
+                client.insert_event(bucket_id, event)
+                log.info(f"Event for question '{question.id}' stored in bucket '{bucket_id}'.")

@@ -8,7 +8,7 @@
 
 import os
 import subprocess
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
@@ -37,16 +37,20 @@ def show(
     title: Optional[str] = None,
     text: Optional[str] = None,
     timeout: int = 60,
+    form_fields: Optional[List[Dict[str, Any]]] = None,
+    reason_fields: Optional[List[bool]] = None,
     **kwargs: Any,
 ) -> Tuple[bool, str]:
     """Display a zenity dialog and capture user input.
 
     Args:
-        dialog_type: Type of dialog to display (e.g., "question", "entry")
+        dialog_type: Type of dialog to display (e.g., "question", "entry", "forms")
         title: Window title for the dialog
         text: Text message to display
         timeout: Timeout in seconds
-        **kwargs: Additional zenity options (ignored for simple dialogs)
+        form_fields: List of dicts with field_type, label, values (for forms dialog)
+        reason_fields: List of bools indicating which form fields have reason fields
+        **kwargs: Additional zenity options
 
     Returns:
         Tuple of (success, content) where success is True if user responded,
@@ -66,6 +70,22 @@ def show(
 
     if timeout:
         cmd.extend(["--timeout", str(timeout)])
+
+    if dialog_type == "forms" and form_fields:
+        for i, field in enumerate(form_fields):
+            field_type = field.get("field_type", "entry")
+            label = field.get("label", "")
+            values = field.get("values", [])
+
+            if field_type == "combo":
+                cmd.extend(["--add-combo", label])
+                if values:
+                    cmd.extend(["--combo-values", "|".join(str(v) for v in values)])
+            elif field_type == "entry":
+                cmd.extend(["--add-entry", label])
+
+            if reason_fields and i < len(reason_fields) and reason_fields[i]:
+                cmd.extend(["--add-entry", "Reason"])
 
     min_value = kwargs.get("min-value")
     max_value = kwargs.get("max-value")

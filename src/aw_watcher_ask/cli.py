@@ -13,7 +13,7 @@ import typer
 
 from aw_watcher_ask import __version__
 from aw_watcher_ask.config import ConfigError, load_config
-from aw_watcher_ask.core import main
+from aw_watcher_ask.core import main, main_for_groups
 from aw_watcher_ask.models import DialogType
 
 
@@ -97,6 +97,19 @@ def _execute_run(
     if config_path or not cli_params_provided:
         try:
             config = load_config(config_path)
+            
+            if config.get("has_question_groups"):
+                question_groups = config["question_groups"]
+                testing_value = config.get("testing", False)
+                if testing is not None:
+                    testing_value = testing
+                main_for_groups(
+                    question_groups=question_groups,
+                    testing=testing_value,
+                    verbose=verbose
+                )
+                return
+            
             if question_id is None:
                 params["question_id"] = config["question_id"]
             if question_type is None:

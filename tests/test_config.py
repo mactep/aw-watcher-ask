@@ -15,8 +15,9 @@ from aw_watcher_ask.config import (
     get_default_config_path,
     load_config,
     _validate_config,
+    _validate_question_groups,
 )
-from aw_watcher_ask.models import DialogType
+from aw_watcher_ask.models import DialogType, FieldType, Question, QuestionGroup
 
 
 def test_get_default_config_path():
@@ -110,7 +111,7 @@ option = "value"
         temp_path = f.name
 
     try:
-        with pytest.raises(ConfigError, match="Missing required \\[question\\] section"):
+        with pytest.raises(ConfigError, match="Missing config: need \\[question\\] or \\[\\[question_groups\\]\\]"):
             load_config(temp_path)
     finally:
         Path(temp_path).unlink()
@@ -299,3 +300,189 @@ max-value = 10
         }
     finally:
         Path(temp_path).unlink()
+
+
+def test_load_config_with_question_groups():
+    """Tests loading config with question_groups array."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write(
+            """
+[[question_groups]]
+id = "daily-checkin"
+title = "Daily Check-in"
+text = "Please rate your current state:"
+schedule = "*/10 * * * *"
+timeout = 120
+
+[[question_groups.questions]]
+id = "happiness.level"
+field_type = "combo"
+label = "How happy are you?"
+values = ["1", "2", "3", "4", "5"]
+reason = true
+
+[[question_groups.questions]]
+id = "anxiety.level"
+field_type = "combo"
+label = "How anxious are you?"
+values = ["1", "2", "3", "4", "5"]
+reason = true
+"""
+        )
+        f.flush()
+        temp_path = f.name
+
+    try:
+        config = load_config(temp_path)
+        assert config["has_question_groups"] is True
+        assert len(config["question_groups"]) == 1
+        
+        group = config["question_groups"][0]
+        assert group.id == "daily-checkin"
+        assert group.title == "Daily Check-in"
+        assert group.text == "Please rate your current state:"
+        assert group.schedule == "*/10 * * * *"
+        assert group.timeout == 120
+        assert len(group.questions) == 2
+        
+        q1 = group.questions[0]
+        assert q1.id == "happiness.level"
+        assert q1.field_type == "combo"
+        assert q1.label == "How happy are you?"
+        assert q1.values == ["1", "2", "3", "4", "5"]
+        assert q1.reason is True
+        
+        q2 = group.questions[1]
+        assert q2.id == "anxiety.level"
+        assert q2.field_type == "combo"
+        assert q2.label == "How anxious are you?"
+        assert q2.values == ["1", "2", "3", "4", "5"]
+        assert q2.reason is True
+    finally:
+        Path(temp_path).unlink()
+
+
+def test_load_config_mixed_format():
+    """Tests loading config with both single question and question_groups."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write(
+            """
+[question]
+id = "quick.mood"
+type = "entry"
+title = "Quick mood check"
+schedule = "0 */2 * * *"
+timeout = 30
+
+[[question_groups]]
+id = "daily-checkin"
+title = "Daily Check-in"
+schedule = "*/10 * * * *"
+
+[[question_groups.questions]]
+id = "happiness.level"
+field_type = "combo"
+label = "How happy?"
+values = ["1", "2", "3"]
+"""
+        )
+        f.flush()
+        temp_path = f.name
+
+    try:
+        config = load_config(temp_path)
+        assert config["has_question_groups"] is True
+        assert len(config["question_groups"]) == 2
+        
+        # First group is from question_groups array
+        group1 = config["question_groups"][0]
+        assert group1.id == "daily-checkin"
+        
+        # Second group is converted from [question] section
+        group2 = config["question_groups"][1]
+        assert group2.id == "single-quick.mood"
+    finally:
+        Path(temp_path).unlink()
+
+
+def test_validate_question_group_missing_id():
+    """Tests that missing group id raises ConfigError."""
+    config = {
+        "question_groups": [
+            {
+                "title": "Test",
+                "questions": [
+                    {"id": "q1", "field_type": "entry", "label": "Q1"}
+                ]
+            }
+        ]
+    }
+    with pytest.raises(ConfigError, match="missing required field 'id'"):
+        _validate_question_groups(config)
+
+
+def test_validate_question_group_missing_questions():
+    """Tests that missing questions array raises ConfigError."""
+    config = {
+        "question_groups": [
+            {
+                "id": "test-group",
+                "title": "Test"
+            }
+        ]
+    }
+    with pytest.raises(ConfigError, match="missing required 'questions' array"):
+        _validate_question_groups(config)
+
+
+def test_validate_question_missing_values_for_combo():
+    """Tests that combo field without values raises ConfigError."""
+    config = {
+        "question_groups": [
+            {
+                "id": "test-group",
+                "title": "Test",
+                "questions": [
+                    {"id": "q1", "field_type": "combo", "label": "Q1"}
+                ]
+            }
+        ]
+    }
+    with pytest.raises(ConfigError, match="field_type 'combo' requires 'values' array"):
+        _validate_question_groups(config)
+
+
+def test_validate_question_with_reason_false():
+    """Tests that reason defaults to False when not specified."""
+    config = {
+        "question_groups": [
+            {
+                "id": "test-group",
+                "title": "Test",
+                "questions": [
+                    {"id": "q1", "field_type": "entry", "label": "Q1"}
+                ]
+            }
+        ]
+    }
+    groups = _validate_question_groups(config)
+    assert len(groups) == 1
+    assert groups[0].questions[0].reason is False
+
+
+def test_validate_question_group_with_until():
+    """Tests parsing until datetime in question group."""
+    config = {
+        "question_groups": [
+            {
+                "id": "test-group",
+                "title": "Test",
+                "until": "2025-12-31T23:59:59",
+                "questions": [
+                    {"id": "q1", "field_type": "entry", "label": "Q1"}
+                ]
+            }
+        ]
+    }
+    groups = _validate_question_groups(config)
+    assert groups[0].until == datetime(2025, 12, 31, 23, 59, 59)

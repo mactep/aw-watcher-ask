@@ -168,7 +168,7 @@ $ aw-watcher-ask --config /path/to/config.toml run
 
 The `--question-id` is used to identify this particular question in the ActivityWatcher a `aw-watcher-ask` bucket, and is therefore mandatory.
 
-The `question-type` parameters is also required and should be one of Zenity's supported [dialog types][Zenity Manual] (complex types such as `forms`, `file-selection` and `list` have not been implemented yet). All options supported by these dialog types are accepted by `aw-watcher-ask run` as extra parameters, and passed unaltered to Zenity under the hood.
+The `question-type` parameters is also required and should be one of Zenity's supported [dialog types][Zenity Manual]. All options supported by these dialog types are accepted by `aw-watcher-ask run` as extra parameters, and passed unaltered to Zenity under the hood.
 
 [Zenity Manual]: https://help.gnome.org/users/zenity/stable/
 
