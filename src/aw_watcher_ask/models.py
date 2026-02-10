@@ -42,6 +42,8 @@ class Question:
     label: str
     values: Optional[List[str]] = None
     reason: bool = False
+    min_value: Optional[int] = None
+    max_value: Optional[int] = None
 
 
 @dataclass
@@ -53,7 +55,7 @@ class QuestionGroup:
     schedule: str = "R * * * *"
     timeout: int = 60
     until: Optional[datetime] = None
-    questions: List[Question] = None
+    questions: Optional[List[Question]] = None
     
     def __post_init__(self):
         if self.questions is None:

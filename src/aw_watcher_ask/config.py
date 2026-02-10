@@ -197,12 +197,28 @@ def _validate_question_groups(config_data: Dict[str, Any]) -> List[QuestionGroup
             
             reason = q_data.get("reason", False)
             
+            min_value = q_data.get("min_value")
+            max_value = q_data.get("max_value")
+            
+            if field_type == "combo" and (min_value is None or max_value is None) and values:
+                try:
+                    numeric_values = [int(v) for v in values if str(v).strip()]
+                    if numeric_values:
+                        if min_value is None:
+                            min_value = min(numeric_values)
+                        if max_value is None:
+                            max_value = max(numeric_values)
+                except ValueError:
+                    pass
+            
             question = Question(
                 id=q_id,
                 field_type=field_type,
                 label=label,
                 values=values,
                 reason=reason,
+                min_value=min_value,
+                max_value=max_value,
             )
             questions.append(question)
         

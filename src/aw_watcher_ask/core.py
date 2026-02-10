@@ -62,8 +62,8 @@ def _ask_one(
     }
 
     if question_type == DialogType.scale:
-        result["min-value"] = kwargs.get("min-value")
-        result["max-value"] = kwargs.get("max-value")
+        result["min-value"] = kwargs.get("min-value", 1)
+        result["max-value"] = kwargs.get("max-value", 10)
 
     logger.debug(f"Zenity response: success={success}, content={content!r}")
     return result
@@ -128,9 +128,12 @@ def _ask_many(
                 "group_id": group_id,
                 "title": question.label,
                 "value": values[value_idx],
-                "field_type": question.field_type,
             }
             
+            if question.min_value is not None:
+                response["min-value"] = question.min_value
+            if question.max_value is not None:
+                response["max-value"] = question.max_value
             if question.reason and reason_idx < len(values):
                 response["reason"] = values[reason_idx]
             
@@ -367,16 +370,22 @@ def main_for_groups(
                         "group_id": group.id,
                         "title": question.label,
                         "value": "",
-                        "field_type": question.field_type,
                     }
+                    if question.min_value is not None:
+                        response["min-value"] = question.min_value
+                    if question.max_value is not None:
+                        response["max-value"] = question.max_value
                     if question.reason:
                         response["reason"] = ""
 
                 event = Event(timestamp=get_current_datetime(), data=response)
                 client.insert_event(bucket_id, event)
                 log.info(f"Event for question '{question.id}' stored in bucket '{bucket_id}'.")
-            
+
             execution["next_execution"] = execution["croniter"].get_next(datetime)
+
+            for question in group.questions:
+                response = responses.get(question.id)
 
             for question in group.questions:
                 response = responses.get(question.id)
