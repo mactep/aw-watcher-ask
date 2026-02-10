@@ -6,25 +6,11 @@
     <style>
         body {
             font-family: sans-serif;
-            margin: 20px;
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
         }
-        .stats-table {
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        .stats-table th, .stats-table td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .stats-table th {
-            background-color: #f2f2f2;
-        }
-        .chart-container {
-            position: relative;
-            height: 400px;
-            margin-top: 20px;
-        }
+
     </style>
 </head>
 <body>
@@ -56,39 +42,61 @@
 
     const client = new AWClient('aw-watcher-ask', { baseURL: window.location.origin });
 
-    function avg(arr) {
-        return arr.reduce((a, b) => a + b, 0) / arr.length;
-    }
-
-    function round(num) {
-        return Math.round((num + Number.EPSILON) * 100) / 100;
-    }
-
-    function getScaleValue(event) {
-        const data = event.data;
-        for (const key in data) {
-            if (key !== 'success') {
-                const value = parseFloat(data[key]);
-                if (!isNaN(value)) {
-                    return value;
-                }
-            }
+    function getNiceStep(range) {
+        const idealStep = range / 5;
+        const magnitude = Math.pow(10, Math.floor(Math.log10(idealStep)));
+        const normalized = idealStep / magnitude;
+        
+        let niceNormalized;
+        if (normalized < 1.5) {
+            niceNormalized = 1;
+        } else if (normalized < 3.5) {
+            niceNormalized = 2;
+        } else if (normalized < 7.5) {
+            niceNormalized = 5;
+        } else {
+            niceNormalized = 10;
         }
-        return null;
+        
+        return niceNormalized * magnitude;
     }
 
-    function getQuestionId(event) {
-        const data = event.data;
-        for (const key in data) {
-            if (key !== 'success') {
-                return key;
-            }
+    function aggregateByHour(events) {
+        const hourMap = new Map();
+        
+        for (const event of events) {
+            const date = new Date(event.timestamp);
+            const hourTimestamp = new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                date.getHours()
+            ).getTime();
+            
+        if (!hourMap.has(hourTimestamp)) {
+            hourMap.set(hourTimestamp, { sum: 0, count: 0, reasons: new Set() });
         }
-        return 'Unknown';
-    }
-
-    function formatPercentage(value) {
-        return round(value * 100).toFixed(1) + '%';
+        
+        const bucket = hourMap.get(hourTimestamp);
+        bucket.sum += parseFloat(event.data.value);
+        bucket.count += 1;
+        
+        const reason = event.data.reason?.trim();
+        if (reason) {
+            const splitReasons = reason.split(',').map(r => r.trim()).filter(r => r);
+            splitReasons.forEach(r => bucket.reasons.add(r));
+        }
+        }
+        
+        return Array.from(hourMap.entries())
+            .map(([timestamp, data]) => ({
+                x: new Date(timestamp),
+                y: data.sum / data.count,
+                reason: data.reasons.size > 0 
+                    ? Array.from(data.reasons).map(r => `• ${r}`).join('<br>') 
+                    : ''
+            }))
+            .sort((a, b) => a.x - b.x);
     }
 
     const colors = [
@@ -113,40 +121,29 @@
             return;
         }
 
-        const totalEvents = events.length;
-        const answeredEvents = events.filter(e => e.data.success === true);
-        const totalAnswered = answeredEvents.length;
-        const responseRate = totalEvents > 0 ? (totalAnswered / totalEvents) : 0;
-
-        const scaleEvents = answeredEvents
-            .map(event => ({
-                ...event,
-                scaleValue: getScaleValue(event),
-                questionId: getQuestionId(event)
-            }))
-            .filter(event => event.scaleValue !== null);
+        const scaleEvents = events.filter(event => {
+            if (event.data.success !== true) return false;
+            const value = event.data.value;
+            return value !== undefined && value !== null && value !== '' && !isNaN(parseFloat(value));
+        });
 
         if (scaleEvents.length === 0) {
             document.body.innerHTML = '<p>No scale-type responses found.</p>';
             return;
         }
 
-        const scaleValues = scaleEvents.map(e => e.scaleValue);
-        const average = avg(scaleValues);
+        let minScale = parseFloat(scaleEvents[0].data['min-value']);
+        let maxScale = parseFloat(scaleEvents[0].data['max-value']);
 
-        const questionIds = [...new Set(scaleEvents.map(e => e.questionId))];
+        const titles = [...new Set(scaleEvents.map(e => e.data.title))];
 
-        const datasets = questionIds.map((questionId, index) => {
-            const questionEvents = scaleEvents
-                .filter(e => e.questionId === questionId)
-                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const datasets = titles.map((title, index) => {
+            const titleEvents = scaleEvents.filter(e => e.data.title === title);
+            const aggregatedData = aggregateByHour(titleEvents);
 
             return {
-                label: questionId,
-                data: questionEvents.map(e => ({
-                    x: new Date(e.timestamp),
-                    y: e.scaleValue
-                })),
+                label: title,
+                data: aggregatedData,
                 borderColor: colors[index % colors.length],
                 backgroundColor: colors[index % colors.length].replace('rgb', 'rgba').replace(')', ', 0.1)'),
                 fill: true,
@@ -154,19 +151,10 @@
             };
         });
 
-        document.body.innerHTML = `
-            <h2>Statistics</h2>
-            <table class="stats-table">
-                <tr><th>Average</th><td>${round(average)}</td></tr>
-                <tr><th>Total Responses</th><td>${totalAnswered}</td></tr>
-                <tr><th>Response Rate</th><td>${formatPercentage(responseRate)}</td></tr>
-                <tr><th>Questions</th><td>${questionIds.length}</td></tr>
-            </table>
-            <h2>Timeline</h2>
-            <div class="chart-container"><canvas id="chart"></canvas></div>
-        `;
+        document.body.removeChild(document.body.firstChild);
+        const ctx = document.createElement('canvas');
+        document.body.appendChild(ctx);
 
-        const ctx = document.getElementById('chart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
             data: {
@@ -177,14 +165,29 @@
                     x: {
                         type: 'time',
                         min: new Date(start),
-                        max: new Date(end)
+                        max: new Date(end),
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
+                        },
+                        ticks: {
+                            format: 'HH:mm'
+                        }
                     },
                     y: {
-                        min: 0,
-                        max: 100,
+                        min: Math.floor(minScale - (maxScale - minScale) * 0.1),
+                        max: Math.ceil(maxScale + (maxScale - minScale) * 0.1),
                         title: {
                             display: true,
                             text: 'Scale Value'
+                        },
+                        ticks: {
+                            stepSize: getNiceStep(
+                                Math.ceil(maxScale + (maxScale - minScale) * 0.1) - 
+                                Math.floor(minScale - (maxScale - minScale) * 0.1)
+                            )
                         }
                     }
                 },
@@ -193,7 +196,16 @@
                 plugins: {
                     tooltip: {
                         mode: 'nearest',
-                        intersect: false
+                        intersect: false,
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const point = context.raw;
+                                if (point.reason && point.reason.trim()) {
+                                    return point.reason.split('<br>');
+                                }
+                                return '';
+                            }
+                        }
                     }
                 }
             }
