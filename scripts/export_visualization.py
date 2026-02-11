@@ -197,6 +197,11 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
         .btn-preset:hover {{
             background-color: #e9e9e9;
         }}
+        .btn-preset.active {{
+            background-color: #4a90d9;
+            color: white;
+            border-color: #4a90d9;
+        }}
         .presets {{
             display: flex;
             gap: 10px;
@@ -234,9 +239,10 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
         </div>
         
         <div class="presets">
-            <button class="btn-preset" id="btn-7days">Últimos 7 dias</button>
-            <button class="btn-preset" id="btn-30days">Últimos 30 dias</button>
-            <button class="btn-preset" id="btn-all">Todo o período</button>
+            <button class="btn-preset" id="btn-today" aria-pressed="false">Hoje</button>
+            <button class="btn-preset" id="btn-7days" aria-pressed="false">Últimos 7 dias</button>
+            <button class="btn-preset" id="btn-30days" aria-pressed="false">Últimos 30 dias</button>
+            <button class="btn-preset" id="btn-all" aria-pressed="false">Todo o período</button>
         </div>
     </div>
     
@@ -551,6 +557,22 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             startDateInput.value = toLocalDateTime(data.earliest);
             endDateInput.value = toLocalDateTime(data.latest);
             
+            setActiveButton('btn-all');
+            updateChart();
+        }}
+        
+        function setToday() {{
+            const now = new Date();
+            const startOfDay = new Date(now);
+            startOfDay.setHours(0, 0, 0, 0);
+            
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            
+            startDateInput.value = toLocalDateTime(startOfDay.toISOString());
+            endDateInput.value = toLocalDateTime(now.toISOString());
+            
+            setActiveButton('btn-today');
             updateChart();
         }}
         
@@ -565,22 +587,48 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             startDateInput.value = toLocalDateTime(startDate.toISOString());
             endDateInput.value = toLocalDateTime(now.toISOString());
             
+            const buttonId = days === 7 ? 'btn-7days' : 'btn-30days';
+            setActiveButton(buttonId);
+            updateChart();
+        }}
+        
+        function clearActiveButtons() {{
+            document.querySelectorAll('.btn-preset').forEach(btn => {{
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+            }});
+        }}
+        
+        function setActiveButton(buttonId) {{
+            clearActiveButtons();
+            const button = document.getElementById(buttonId);
+            if (button) {{
+                button.classList.add('active');
+                button.setAttribute('aria-pressed', 'true');
+            }}
+        }}
+        
+        function updateWithCustomDates() {{
+            clearActiveButtons();
             updateChart();
         }}
         
         document.addEventListener('DOMContentLoaded', function() {{
-            document.getElementById('apply-btn').addEventListener('click', updateChart);
+            document.getElementById('apply-btn').addEventListener('click', updateWithCustomDates);
             document.getElementById('start-date').addEventListener('keypress', function(e) {{
-                if (e.key === 'Enter') updateChart();
+                if (e.key === 'Enter') updateWithCustomDates();
             }});
             document.getElementById('end-date').addEventListener('keypress', function(e) {{
-                if (e.key === 'Enter') updateChart();
+                if (e.key === 'Enter') updateWithCustomDates();
             }});
+            document.getElementById('start-date').addEventListener('change', clearActiveButtons);
+            document.getElementById('end-date').addEventListener('change', clearActiveButtons);
+            document.getElementById('btn-today').addEventListener('click', setToday);
             document.getElementById('btn-7days').addEventListener('click', () => setPreset(7));
             document.getElementById('btn-30days').addEventListener('click', () => setPreset(30));
             document.getElementById('btn-all').addEventListener('click', setAllTime);
             
-            setAllTime();
+            setToday();
         }});
     </script>
 </body>
