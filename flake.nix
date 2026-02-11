@@ -16,11 +16,13 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        aw-watcher-ask = (pkgs.callPackage ./default.nix { }).aw-watcher-ask;
+        aw-watcher-ask = (pkgs.callPackage ./default.nix { inherit pkgs; }).aw-watcher-ask;
       in
       {
         packages = {
+          aw-watcher-ask = aw-watcher-ask;
           default = aw-watcher-ask;
+          aw-watcher-ask-export = (pkgs.callPackage ./default.nix { inherit pkgs; }).aw-watcher-ask-export;
         };
 
         devShells = {

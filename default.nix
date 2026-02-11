@@ -1,5 +1,6 @@
 {
   lib,
+  pkgs,
   python3Packages,
   zenity,
 }:
@@ -8,12 +9,6 @@
     pname = "aw-watcher-ask";
     version = "unstable";
 
-    # src = fetchFromGitHub {
-    #   owner = "bcbernardo";
-    #   repo = "aw-watcher-ask";
-    #   rev = "7b09be0e28a3c3d9227af0782d756c48f9217191";
-    #   sha256 = "sha256-MASwH9rP0GRcbq9AoZr52oWYV2v8q/zEQDz0UAWFouA=";
-    # };
     src = ./.;
 
     pyproject = true;
@@ -41,4 +36,21 @@
       license = licenses.mit;
     };
   };
+
+  aw-watcher-ask-export = let
+    pythonEnv = python3Packages.python.withPackages (p: with p; [
+      requests
+      typer
+    ]);
+  in
+    pkgs.writeShellApplication {
+      name = "export_visualization";
+      runtimeInputs = [ pythonEnv ];
+      text = ''exec python3 ${./scripts/export_visualization.py} "$@"'';
+      meta = with lib; {
+        description = "Export ActivityWatch aw-watcher-ask data to a static HTML visualization";
+        homepage = "https://github.com/ActivityWatch/aw-watcher-ask";
+        license = licenses.mit;
+      };
+    };
 }
