@@ -126,8 +126,23 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Visualização aw-watcher-ask</title>
     <style>
+        :root {{
+            --mobile-breakpoint: 768px;
+            --fab-size: 56px;
+            --fab-spacing: 20px;
+            --touch-target-min: 44px;
+            --bottom-sheet-border-radius: 16px;
+            --primary-color: #4a90d9;
+            --primary-hover: #357abd;
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --border-color: #ccc;
+            --error-bg: #ffebee;
+            --error-color: #d32f2f;
+        }}
         * {{
             box-sizing: border-box;
         }}
@@ -148,7 +163,7 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             margin-bottom: 20px;
         }}
         .controls {{
-            background: #f5f5f5;
+            background: var(--background-color);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -165,13 +180,13 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
         }}
         .date-inputs input {{
             padding: 8px 12px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
             font-size: 14px;
         }}
         .date-inputs input:focus {{
             outline: none;
-            border-color: #4a90d9;
+            border-color: var(--primary-color);
         }}
         button {{
             padding: 8px 16px;
@@ -183,24 +198,24 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             transition: background-color 0.2s;
         }}
         .btn-primary {{
-            background-color: #4a90d9;
+            background-color: var(--primary-color);
             color: white;
         }}
         .btn-primary:hover {{
-            background-color: #357abd;
+            background-color: var(--primary-hover);
         }}
         .btn-preset {{
             background-color: #fff;
-            color: #333;
-            border: 1px solid #ccc;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
         }}
         .btn-preset:hover {{
             background-color: #e9e9e9;
         }}
         .btn-preset.active {{
-            background-color: #4a90d9;
+            background-color: var(--primary-color);
             color: white;
-            border-color: #4a90d9;
+            border-color: var(--primary-color);
         }}
         .presets {{
             display: flex;
@@ -208,9 +223,9 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             flex-wrap: wrap;
         }}
         .error {{
-            color: #d32f2f;
+            color: var(--error-color);
             padding: 10px;
-            background: #ffebee;
+            background: var(--error-bg);
             border-radius: 4px;
             margin-bottom: 10px;
             display: none;
@@ -219,17 +234,153 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             height: calc(100% - 200px);
             min-height: 400px;
         }}
+        .filter-fab {{
+            display: none;
+        }}
+        .bottom-sheet-backdrop {{
+            display: none;
+        }}
+        .bottom-sheet {{
+            display: none;
+        }}
+        @media (max-width: 768px) {{
+            body {{
+                padding: 10px;
+                height: auto;
+                padding-bottom: 70px;
+            }}
+            .header {{
+                margin-bottom: 15px;
+            }}
+            .controls {{
+                display: none;
+            }}
+            .date-inputs {{
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }}
+            .date-inputs label {{
+                font-size: 14px;
+            }}
+            .date-inputs input {{
+                width: 100%;
+                font-size: 16px;
+            }}
+            button {{
+                padding: 14px 16px;
+                min-height: var(--touch-target-min);
+                font-size: 16px;
+            }}
+            .presets {{
+                flex-direction: column;
+                gap: 8px;
+            }}
+            #chart-container {{
+                min-height: 300px;
+            }}
+            .filter-fab {{
+                display: flex;
+                position: fixed;
+                bottom: var(--fab-spacing);
+                right: var(--fab-spacing);
+                width: var(--fab-size);
+                height: var(--fab-size);
+                border-radius: 50%;
+                background-color: var(--primary-color);
+                color: white;
+                border: none;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                align-items: center;
+                justify-content: center;
+                z-index: 999;
+            }}
+            .filter-fab svg {{
+                width: 24px;
+                height: 24px;
+            }}
+            .bottom-sheet-backdrop {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+            }}
+            .bottom-sheet-backdrop.active {{
+                display: block;
+            }}
+            .bottom-sheet {{
+                display: none;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background-color: white;
+                border-radius: var(--bottom-sheet-border-radius) var(--bottom-sheet-border-radius) 0 0;
+                box-shadow: 0 -2px 20px rgba(0,0,0,0.15);
+                z-index: 1001;
+                max-height: 80vh;
+                overflow-y: auto;
+                transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            }}
+            .bottom-sheet.active {{
+                transform: translateY(0);
+            }}
+            .bottom-sheet-handle {{
+                width: 40px;
+                height: 4px;
+                background-color: #ccc;
+                border-radius: 2px;
+                margin: 8px auto;
+            }}
+            .bottom-sheet-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 15px 10px 15px;
+                border-bottom: 1px solid #eee;
+                margin-bottom: 15px;
+            }}
+            .bottom-sheet-header h2 {{
+                margin: 0;
+                font-size: 18px;
+            }}
+            .bottom-sheet-close {{
+                background: none;
+                border: none;
+                font-size: 24px;
+                padding: 8px;
+                cursor: pointer;
+                color: #666;
+                min-height: auto;
+            }}
+            .bottom-sheet .controls {{
+                display: block;
+                background: none;
+                border-radius: 0;
+                padding: 0 15px 20px 15px;
+                margin: 0;
+            }}
+            .bottom-sheet .error {{
+                margin-bottom: 15px;
+            }}
+        }}
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Visualização aw-watcher-ask</h1>
+        <h1>Visualização</h1>
         <p class="status">Carregando...</p>
     </div>
-    
+
     <div class="controls">
         <div id="error" class="error"></div>
-        
+
         <div class="date-inputs">
             <label for="start-date">Início:</label>
             <input type="datetime-local" id="start-date">
@@ -237,17 +388,52 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             <input type="datetime-local" id="end-date">
             <button class="btn-primary" id="apply-btn">Aplicar</button>
         </div>
-        
+
         <div class="presets">
-            <button class="btn-preset" id="btn-today" aria-pressed="false">Hoje</button>
-            <button class="btn-preset" id="btn-7days" aria-pressed="false">Últimos 7 dias</button>
-            <button class="btn-preset" id="btn-30days" aria-pressed="false">Últimos 30 dias</button>
-            <button class="btn-preset" id="btn-all" aria-pressed="false">Todo o período</button>
+            <button class="btn-preset" id="btn-today" data-preset="today" aria-pressed="false">Hoje</button>
+            <button class="btn-preset" id="btn-7days" data-preset="7" aria-pressed="false">Últimos 7 dias</button>
+            <button class="btn-preset" id="btn-30days" data-preset="30" aria-pressed="false">Últimos 30 dias</button>
+            <button class="btn-preset" id="btn-all" data-preset="all" aria-pressed="false">Todo o período</button>
         </div>
     </div>
-    
+
     <div id="chart-container">
         <canvas id="chart"></canvas>
+    </div>
+
+    <button class="filter-fab" id="filter-fab" aria-label="Filtros">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+    </button>
+
+    <div class="bottom-sheet-backdrop" id="bottom-sheet-backdrop"></div>
+
+    <div class="bottom-sheet" id="bottom-sheet">
+        <div class="bottom-sheet-handle"></div>
+        <div class="bottom-sheet-header">
+            <h2>Filtros</h2>
+            <button class="bottom-sheet-close" id="bottom-sheet-close" aria-label="Fechar">×</button>
+        </div>
+        <div class="controls" id="mobile-controls">
+            <div id="mobile-error" class="error"></div>
+
+            <div class="date-inputs">
+                <label for="mobile-start-date">Início:</label>
+                <input type="datetime-local" id="mobile-start-date">
+                <label for="mobile-end-date">Fim:</label>
+                <input type="datetime-local" id="mobile-end-date">
+                <button class="btn-primary" id="mobile-apply-btn">Aplicar</button>
+            </div>
+
+            <div class="presets">
+                <button class="btn-preset" id="mobile-btn-today" data-preset="today" aria-pressed="false">Hoje</button>
+                <button class="btn-preset" id="mobile-btn-7days" data-preset="7" aria-pressed="false">Últimos 7 dias</button>
+                <button class="btn-preset" id="mobile-btn-30days" data-preset="30" aria-pressed="false">Últimos 30 dias</button>
+                <button class="btn-preset" id="mobile-btn-all" data-preset="all" aria-pressed="false">Todo o período</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -259,20 +445,44 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
         moment.locale('pt-BR');
         const data = {embedded_data};
         let chart = null;
-        
+        const elements = {{
+            start: null,
+            end: null,
+            mobileStart: null,
+            mobileEnd: null,
+            applyBtn: null,
+            mobileApplyBtn: null,
+            error: null,
+            mobileError: null,
+            bottomSheet: null,
+            backdrop: null,
+            filterFab: null,
+            closeBtn: null
+        }};
+
         function translateTitle(title) {{
             return data.translations[title] || title;
         }}
-        
-        function showError(message) {{
-            const errorDiv = document.getElementById('error');
+
+        function showErrorForTarget(targetId, message) {{
+            const errorDiv = document.getElementById(targetId);
+            if (!errorDiv) return;
+
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
             setTimeout(() => {{
                 errorDiv.style.display = 'none';
             }}, 5000);
         }}
-        
+
+        function showError(message) {{
+            showErrorForTarget('error', message);
+        }}
+
+        function showMobileError(message) {{
+            showErrorForTarget('mobile-error', message);
+        }}
+
         function toLocalDateTime(isoString) {{
             const date = new Date(isoString);
             const year = date.getFullYear();
@@ -282,12 +492,18 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             const minutes = String(date.getMinutes()).padStart(2, '0');
             return `${{year}}-${{month}}-${{day}}T${{hours}}:${{minutes}}`;
         }}
-        
+
         function toISOString(dateTimeLocal) {{
             const date = new Date(dateTimeLocal);
             return date.toISOString();
         }}
-        
+
+        function syncDates(source, target) {{
+            if (source && target) {{
+                target.value = source.value;
+            }}
+        }}
+
         function formatBrazilianDate(isoString) {{
             const date = new Date(isoString);
             const day = String(date.getDate()).padStart(2, '0');
@@ -297,11 +513,11 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
             const minutes = String(date.getMinutes()).padStart(2, '0');
             return `${{day}}/${{month}}/${{year}} ${{hours}}:${{minutes}}`;
         }}
-        
+
         function formatBrazilianNumber(value) {{
             return value.toFixed(1).replace('.', ',');
         }}
-        
+
         function filterEvents(events, start, end) {{
             const startDate = new Date(start);
             const endDate = new Date(end);
@@ -310,10 +526,10 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                 return ts >= startDate && ts <= endDate;
             }});
         }}
-        
+
         function aggregateByHour(events, startDate, endDate) {{
             const hourMap = new Map();
-            
+
             events.forEach(event => {{
                 const date = new Date(event.timestamp);
                 const hourTimestamp = new Date(
@@ -322,25 +538,25 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                     date.getDate(),
                     date.getHours()
                 ).getTime();
-                
+
                 if (!hourMap.has(hourTimestamp)) {{
                     hourMap.set(hourTimestamp, {{ sum: 0, count: 0, reasons: new Set() }});
                 }}
-                
+
                 const bucket = hourMap.get(hourTimestamp);
                 bucket.sum += parseFloat(event.data.value);
                 bucket.count += 1;
-                
+
                 const reason = event.data.reason?.trim();
                 if (reason) {{
                     reason.split(',').map(r => r.trim()).filter(r => r).forEach(r => bucket.reasons.add(r));
                 }}
             }});
-            
+
             const result = [];
             let current = new Date(startDate);
             current.setMinutes(0, 0, 0);
-            
+
             while (current <= endDate) {{
                 const hourTimestamp = current.getTime();
                 if (hourMap.has(hourTimestamp)) {{
@@ -348,20 +564,20 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                     result.push({{
                         x: current.toISOString(),
                         y: bucket.sum / bucket.count,
-                        reason: bucket.reasons.size > 0 
-                            ? Array.from(bucket.reasons).map(r => `• ${{r}}`).join('<br>') 
+                        reason: bucket.reasons.size > 0
+                            ? Array.from(bucket.reasons).map(r => `• ${{r}}`).join('<br>')
                             : ''
                     }});
                 }}
                 current.setHours(current.getHours() + 1);
             }}
-            
+
             return result;
         }}
-        
+
         function aggregateByDay(events, startDate, endDate) {{
             const dayMap = new Map();
-            
+
             events.forEach(event => {{
                 const date = new Date(event.timestamp);
                 const dayTimestamp = new Date(
@@ -369,25 +585,25 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                     date.getMonth(),
                     date.getDate()
                 ).getTime();
-                
+
                 if (!dayMap.has(dayTimestamp)) {{
                     dayMap.set(dayTimestamp, {{ sum: 0, count: 0, reasons: new Set() }});
                 }}
-                
+
                 const bucket = dayMap.get(dayTimestamp);
                 bucket.sum += parseFloat(event.data.value);
                 bucket.count += 1;
-                
+
                 const reason = event.data.reason?.trim();
                 if (reason) {{
                     reason.split(',').map(r => r.trim()).filter(r => r).forEach(r => bucket.reasons.add(r));
                 }}
             }});
-            
+
             const result = [];
             let current = new Date(startDate);
             current.setHours(0, 0, 0, 0);
-            
+
             while (current <= endDate) {{
                 const dayTimestamp = current.getTime();
                 if (dayMap.has(dayTimestamp)) {{
@@ -395,17 +611,17 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                     result.push({{
                         x: current.toISOString(),
                         y: bucket.sum / bucket.count,
-                        reason: bucket.reasons.size > 0 
-                            ? Array.from(bucket.reasons).map(r => `• ${{r}}`).join('<br>') 
+                        reason: bucket.reasons.size > 0
+                            ? Array.from(bucket.reasons).map(r => `• ${{r}}`).join('<br>')
                             : ''
                     }});
                 }}
                 current.setDate(current.getDate() + 1);
             }}
-            
+
             return result;
         }}
-        
+
         function getAggregationConfig(start, end) {{
             const duration = new Date(end) - new Date(start);
             if (duration > 24 * 60 * 60 * 1000) {{
@@ -421,28 +637,28 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                 displayFormat: 'HH:mm'
             }};
         }}
-        
+
         function renderChart(filteredEvents, start, end) {{
             if (filteredEvents.length === 0) {{
                 document.getElementById('chart-container').innerHTML = '<p>Nenhuma resposta do tipo escala encontrada para o período selecionado.</p>';
                 document.querySelector('.status').textContent = `Nenhum evento encontrado de ${{formatBrazilianDate(start)}} a ${{formatBrazilianDate(end)}}`;
                 return;
             }}
-            
+
             const startDate = new Date(start);
             const endDate = new Date(end);
-            
+
             const groupedEvents = new Map();
             data.titles.forEach(title => {{
                 groupedEvents.set(title, filteredEvents.filter(e => e.data.title === title));
             }});
-            
+
             const aggregConfig = getAggregationConfig(start, end);
-            
+
             const datasets = data.titles.map((title, index) => {{
                 const titleEvents = groupedEvents.get(title) || [];
                 const aggregatedData = aggregConfig.aggregFn(titleEvents, startDate, endDate);
-                
+
                 return {{
                     label: translateTitle(title),
                     data: aggregatedData,
@@ -452,17 +668,17 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                     tension: 0.25
                 }};
             }});
-            
+
             document.querySelector('.status').textContent = `Exibindo ${{filteredEvents.length}} eventos de ${{formatBrazilianDate(start)}} a ${{formatBrazilianDate(end)}}`;
-            
+
             const chartContainer = document.getElementById('chart-container');
             chartContainer.innerHTML = '<canvas id="chart"></canvas>';
             const ctx = document.getElementById('chart').getContext('2d');
-            
+
             if (chart) {{
                 chart.destroy();
             }}
-            
+
             chart = new Chart(ctx, {{
                 type: 'line',
                 data: {{
@@ -528,107 +744,224 @@ def generate_html(events: List[Dict[str, Any]], bucket_id: str) -> str:
                 }}
             }});
         }}
-        
+
         function updateChart() {{
-            const startValue = document.getElementById('start-date').value;
-            const endValue = document.getElementById('end-date').value;
-            
+            const startValue = elements.start.value;
+            const endValue = elements.end.value;
+
             if (!startValue || !endValue) {{
                 showError('Por favor, selecione as datas de início e fim');
                 return;
             }}
-            
+
             const startIso = toISOString(startValue);
             const endIso = toISOString(endValue);
-            
+
             if (new Date(startIso) > new Date(endIso)) {{
                 showError('A data de início deve ser anterior à data de fim');
                 return;
             }}
-            
+
             const filtered = filterEvents(data.events, startIso, endIso);
             renderChart(filtered, startIso, endIso);
         }}
-        
-        function setAllTime() {{
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
-            
-            startDateInput.value = toLocalDateTime(data.earliest);
-            endDateInput.value = toLocalDateTime(data.latest);
-            
-            setActiveButton('btn-all');
-            updateChart();
-        }}
-        
-        function setToday() {{
+
+        function applyPresetRange(preset, buttonId, closeSheet = false) {{
             const now = new Date();
-            const startOfDay = new Date(now);
-            startOfDay.setHours(0, 0, 0, 0);
-            
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
-            
-            startDateInput.value = toLocalDateTime(startOfDay.toISOString());
-            endDateInput.value = toLocalDateTime(now.toISOString());
-            
-            setActiveButton('btn-today');
-            updateChart();
-        }}
-        
-        function setPreset(days) {{
-            const now = new Date();
-            const startDate = new Date(now);
-            startDate.setDate(startDate.getDate() - days);
-            
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
-            
-            startDateInput.value = toLocalDateTime(startDate.toISOString());
-            endDateInput.value = toLocalDateTime(now.toISOString());
-            
-            const buttonId = days === 7 ? 'btn-7days' : 'btn-30days';
+            let startDate;
+
+            if (preset === 'today') {{
+                startDate = new Date(now);
+                startDate.setHours(0, 0, 0, 0);
+            }} else if (preset === 'all') {{
+                startDate = new Date(data.earliest);
+            }} else {{
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - preset);
+            }}
+
+            const endDate = preset === 'all' ? new Date(data.latest) : now;
+
+            elements.start.value = toLocalDateTime(startDate.toISOString());
+            elements.end.value = toLocalDateTime(endDate.toISOString());
+
+            if (elements.mobileStart && elements.mobileEnd) {{
+                syncDates(elements.start, elements.mobileStart);
+                syncDates(elements.end, elements.mobileEnd);
+            }}
+
             setActiveButton(buttonId);
             updateChart();
+
+            if (closeSheet) {{
+                closeBottomSheet();
+            }}
         }}
-        
+
         function clearActiveButtons() {{
             document.querySelectorAll('.btn-preset').forEach(btn => {{
                 btn.classList.remove('active');
                 btn.setAttribute('aria-pressed', 'false');
             }});
         }}
-        
-        function setActiveButton(buttonId) {{
+
+        function setActiveButton(buttonOrPreset) {{
             clearActiveButtons();
-            const button = document.getElementById(buttonId);
-            if (button) {{
-                button.classList.add('active');
-                button.setAttribute('aria-pressed', 'true');
+
+            const presetButtons = document.querySelectorAll(`.btn-preset[data-preset="${{buttonOrPreset}}"]`);
+
+            if (presetButtons.length > 0) {{
+                presetButtons.forEach(btn => {{
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', 'true');
+                }});
+            }} else {{
+                const button = document.getElementById(buttonOrPreset);
+                if (button) {{
+                    button.classList.add('active');
+                    button.setAttribute('aria-pressed', 'true');
+                }}
             }}
         }}
-        
+
         function updateWithCustomDates() {{
             clearActiveButtons();
             updateChart();
         }}
-        
+
+        function openBottomSheet() {{
+            syncDates(elements.start, elements.mobileStart);
+            syncDates(elements.end, elements.mobileEnd);
+
+            elements.bottomSheet.style.display = 'block';
+            elements.backdrop.classList.add('active');
+            elements.bottomSheet.classList.add('active');
+
+            if (elements.mobileStart) {{
+                elements.mobileStart.focus();
+            }}
+        }}
+
+        function closeBottomSheet() {{
+            elements.bottomSheet.classList.remove('active');
+            elements.backdrop.classList.remove('active');
+            setTimeout(() => {{
+                elements.bottomSheet.style.display = 'none';
+            }}, 300);
+
+            if (elements.filterFab) {{
+                elements.filterFab.focus();
+            }}
+        }}
+
+        function mobileUpdateChart() {{
+            syncDates(elements.mobileStart, elements.start);
+            syncDates(elements.mobileEnd, elements.end);
+
+            clearActiveButtons();
+            updateChart();
+            closeBottomSheet();
+        }}
+
+        function mobileValidateAndUpdate() {{
+            const startValue = elements.mobileStart.value;
+            const endValue = elements.mobileEnd.value;
+
+            if (!startValue || !endValue) {{
+                showMobileError('Por favor, selecione as datas de início e fim');
+                return;
+            }}
+
+            const startIso = toISOString(startValue);
+            const endIso = toISOString(endValue);
+
+            if (new Date(startIso) > new Date(endIso)) {{
+                showMobileError('A data de início deve ser anterior à data de fim');
+                return;
+            }}
+
+            mobileUpdateChart();
+        }}
+
+        function cacheElements() {{
+            elements.start = document.getElementById('start-date');
+            elements.end = document.getElementById('end-date');
+            elements.mobileStart = document.getElementById('mobile-start-date');
+            elements.mobileEnd = document.getElementById('mobile-end-date');
+            elements.applyBtn = document.getElementById('apply-btn');
+            elements.mobileApplyBtn = document.getElementById('mobile-apply-btn');
+            elements.bottomSheet = document.getElementById('bottom-sheet');
+            elements.backdrop = document.getElementById('bottom-sheet-backdrop');
+            elements.filterFab = document.getElementById('filter-fab');
+            elements.closeBtn = document.getElementById('bottom-sheet-close');
+        }}
+
+        function bindEvents() {{
+            if (elements.applyBtn) {{
+                elements.applyBtn.addEventListener('click', updateWithCustomDates);
+            }}
+
+            if (elements.start) {{
+                elements.start.addEventListener('keypress', (e) => {{
+                    if (e.key === 'Enter') updateWithCustomDates();
+                }});
+                elements.start.addEventListener('change', clearActiveButtons);
+            }}
+
+            if (elements.end) {{
+                elements.end.addEventListener('keypress', (e) => {{
+                    if (e.key === 'Enter') updateWithCustomDates();
+                }});
+                elements.end.addEventListener('change', clearActiveButtons);
+            }}
+
+            document.getElementById('btn-today').addEventListener('click', () => applyPresetRange('today', 'today'));
+            document.getElementById('btn-7days').addEventListener('click', () => applyPresetRange(7, 7));
+            document.getElementById('btn-30days').addEventListener('click', () => applyPresetRange(30, 30));
+            document.getElementById('btn-all').addEventListener('click', () => applyPresetRange('all', 'all'));
+
+            if (elements.filterFab) {{
+                elements.filterFab.addEventListener('click', openBottomSheet);
+            }}
+
+            if (elements.closeBtn) {{
+                elements.closeBtn.addEventListener('click', closeBottomSheet);
+            }}
+
+            if (elements.backdrop) {{
+                elements.backdrop.addEventListener('click', closeBottomSheet);
+            }}
+
+            if (elements.mobileApplyBtn) {{
+                elements.mobileApplyBtn.addEventListener('click', mobileValidateAndUpdate);
+            }}
+
+            if (elements.mobileStart) {{
+                elements.mobileStart.addEventListener('keypress', (e) => {{
+                    if (e.key === 'Enter') mobileValidateAndUpdate();
+                }});
+            }}
+
+            if (elements.mobileEnd) {{
+                elements.mobileEnd.addEventListener('keypress', (e) => {{
+                    if (e.key === 'Enter') mobileValidateAndUpdate();
+                }});
+            }}
+
+            document.getElementById('mobile-btn-today').addEventListener('click', () => applyPresetRange('today', 'today', true));
+            document.getElementById('mobile-btn-7days').addEventListener('click', () => applyPresetRange(7, 7, true));
+            document.getElementById('mobile-btn-30days').addEventListener('click', () => applyPresetRange(30, 30, true));
+            document.getElementById('mobile-btn-all').addEventListener('click', () => applyPresetRange('all', 'all', true));
+
+            document.addEventListener('keydown', (e) => {{
+                if (e.key === 'Escape') closeBottomSheet();
+            }});
+        }}
+
         document.addEventListener('DOMContentLoaded', function() {{
-            document.getElementById('apply-btn').addEventListener('click', updateWithCustomDates);
-            document.getElementById('start-date').addEventListener('keypress', function(e) {{
-                if (e.key === 'Enter') updateWithCustomDates();
-            }});
-            document.getElementById('end-date').addEventListener('keypress', function(e) {{
-                if (e.key === 'Enter') updateWithCustomDates();
-            }});
-            document.getElementById('start-date').addEventListener('change', clearActiveButtons);
-            document.getElementById('end-date').addEventListener('change', clearActiveButtons);
-            document.getElementById('btn-today').addEventListener('click', setToday);
-            document.getElementById('btn-7days').addEventListener('click', () => setPreset(7));
-            document.getElementById('btn-30days').addEventListener('click', () => setPreset(30));
-            document.getElementById('btn-all').addEventListener('click', setAllTime);
-            
-            setToday();
+            cacheElements();
+            bindEvents();
+            applyPresetRange('today', 'today');
         }});
     </script>
 </body>
